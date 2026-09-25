@@ -1,71 +1,51 @@
 # stickbug_web
 
-Web-native reconstruction of the Stick Bug meme mechanics.
+Web-native reconstruction of the Stick Bug meme template.
 
-The template is intentionally split into two different rendering domains:
+This revision treats the user's four screenshots as hard visual targets instead of approximate references. The screenshots were exhaustively matched against all 443 frames of the supplied source clip before camera/layout calibration.
 
-- **setup/bait content** — external; not part of this repository
-- **5.8–7.5 s** — 2D SVG trace/morph into a stick-bug silhouette
-- **7.5 s onward** — hard cut to a procedural **Three.js 3D stick insect**
+## Timeline
 
-That 2D → 3D discontinuity is treated as part of the gag, rather than rendering the whole sequence with one visual system.
+The reusable template starts at the first metallophone strike, so the source clip's ~0.987 s leading silence is removed.
 
-## Run
+- 0.000–2.666 s: 9 metallophone strikes
+  - strikes 1–7: source object line components
+  - strike 8: base/ledge
+  - strike 9: background
+- 4.000 s: final metallophone strike; the source object disappears
+- 4.813 s: brass transition starts and the remaining lines move toward the traced stick-bug + ledge target
+- 6.346 s: calibrated 2D target pose (source 7.333 s)
+- 6.513 s: deliberately abrupt 2D -> 3D cut (source 7.500 s)
+- 6.546 s: first calibrated 3D/live composition target (source 7.533 s)
+- 9.613 s: pre-whip calibrated composition target (source 10.600 s)
+- 9.643 s: camera whip begins
+- 10.280 s: forest-side calibrated composition target (source 11.267 s)
 
-```bash
-npm run serve
-```
+## Rendering
 
-The serve script regenerates the separate audio/image assets before starting the preview.
+- `src/scene.mjs` — 2D line extraction/morph. The final 2D pose is a pixel-space trace of the 7.333 s reference frame.
+- `src/stickbug3d.mjs` — Three.js renderer. The insect, ledge, occluding post and camera have calibrated keyframes at 7.533 / 10.600 / 11.267 source seconds.
+- `src/app.mjs` — transport and separately timed audio layers.
 
-## Source of truth
+The 3D insect is made from real 3D segment meshes. Leg feet stay pinned to the ledge; the body and knees absorb the beat-synchronous motion between calibrated frames.
 
-- `src/scene.mjs` — 2D transition and timing constants
-- `src/stickbug3d.mjs` — procedural 3D insect, rig motion, camera and ledge/garden transition
-- `src/app.mjs` — shared timeline/audio transport
-- `scripts/generate-assets.mjs` — separate WAV and SVG synthesis
+## Separate generated assets
 
-## Separate assets
-
-### Images
-
+- `assets/sfx/intro-bells.wav` — 9 overlapping metallophone tones + delayed final tone
+- `assets/sfx/morph-brass.wav` — brass-like transition using the measured 5.8–7.5 s onset pattern
+- `assets/sfx/reveal-hit.wav`
+- `assets/music/stickbug-inspired-loop.wav`
 - `assets/image/morph-keyframe.svg`
 - `assets/image/stickbug-2d-pose.svg`
 
-### Music
-
-- `assets/music/stickbug-inspired-loop.wav`
-
-The composition is new. The target is the source clip's **texture**: 130.8 BPM, overlapping low/mid layers, dense attacks, saturation and a low spectral ceiling.
-
-### SFX
-
-- `assets/sfx/outline-pop.wav`
-- `assets/sfx/morph.wav`
-- `assets/sfx/reveal-hit.wav`
-
-The SFX are resynthesized from measured onset timing, pitch/resonance bands, envelopes and noise balance. They do not embed samples from the reference recording.
-
-Regenerate all generated assets with:
+Regenerate with:
 
 ```bash
 npm run generate
 ```
 
-or audio only:
+Preview with:
 
 ```bash
-npm run generate:audio
+npm run serve
 ```
-
-## Reference-derived timing
-
-| event | time |
-| --- | ---: |
-| outline cue | 5.000 s |
-| 2D morph starts | 5.800 s |
-| 2D → 3D reveal / music | 7.500 s |
-| camera whip | 10.630 s |
-| garden settles | 11.250 s |
-
-The pre-5 s EA footage in the supplied reference is treated as the replaceable setup slot, not as part of the meme template.
