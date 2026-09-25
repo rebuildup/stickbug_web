@@ -2,63 +2,99 @@ const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
 const lerp=(a,b,t)=>a+(b-a)*t;
 const ease=t=>{t=clamp(t);return t*t*(3-2*t);};
 
-export const DURATION=14.7679;
+export const SOURCE_OFFSET=0.987;
+export const DURATION=14.7679-SOURCE_OFFSET;
 export const BPM=130.8;
+export const sourceToTemplate=t=>t-SOURCE_OFFSET;
+
+export const INTRO_NOTE_TIMES=[0.000,0.330,0.666,0.997,1.333,1.664,2.000,2.330,2.666,4.000];
+export const INTRO_NOTE_FREQS=[527.34,515.62,597.66,621.09,656.25,656.25,738.28,785.16,843.75,878.91];
+
 export const CUTS={
-  setupEnd:5.000,
-  outlinePop:5.000,
-  morphStart:5.800,
-  reveal:7.500,
-  whipStart:10.630,
-  gardenStart:11.250,
+  finalDisappear:4.000,
+  morphStart:sourceToTemplate(5.800),
+  target2D:sourceToTemplate(7.3333333333),
+  reveal:sourceToTemplate(7.500),
+  first3D:sourceToTemplate(7.5333333333),
+  preWhip:sourceToTemplate(10.600),
+  whipStart:sourceToTemplate(10.630),
+  garden:sourceToTemplate(11.2666666667),
 };
 
-const sourceSegments=[
-  [[-64,-24],[-17,-24]], [[-57,-6],[-7,-6]], [[-49,13],[-3,13]],
-  [[-2,13],[18,-22]], [[18,-22],[52,10]], [[8,13],[26,-4]],
-  [[26,-4],[48,14]], [[43,-20],[67,-20]],
-];
+export const TRACE_2D={
+  body:[[165,60],[181,69],[205,82],[228,89],[281,98],[296,99]],
+  legs:[
+    [[181,70],[137,92],[93,133]],
+    [[186,74],[159,105],[142,148]],
+    [[205,82],[181,108],[163,148]],
+    [[228,89],[217,113],[204,151]],
+    [[281,98],[280,122],[279,153]],
+  ],
+  platform:[[0,148],[408,164]],
+};
 
-export const BUG_TRACE=[
-  [[-58,-12],[53,-7]],
-  [[-58,-12],[-88,-34]],
-  [[-45,-11],[-79,34]],
-  [[-31,-10],[-20,39]],
-  [[-17,-9],[-41,34]],
-  [[1,-8],[8,40]],
-  [[20,-8],[5,36]],
-  [[40,-7],[53,33]],
+const SOURCE_LINES=[
+  [[120,74],[170,74]], [[126,92],[178,92]], [[134,111],[181,111]],
+  [[185,111],[205,77]], [[205,77],[240,109]], [[197,111],[218,95]], [[218,95],[241,113]],
 ];
+const BACKGROUND_LINES=[[[58,50],[58,147]],[[340,43],[340,150]],[[315,45],[376,45]]];
+const BASE_LINE=[[0,148],[408,164]];
 
-function line(a,b,attrs=''){
-  return `<line x1="${a[0].toFixed(2)}" y1="${a[1].toFixed(2)}" x2="${b[0].toFixed(2)}" y2="${b[1].toFixed(2)}" ${attrs}/>`;
+function path(points,attrs=''){
+  return `<polyline points="${points.map(p=>`${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(' ')}" fill="none" ${attrs}/>`;
 }
-function mixSeg(a,b,t){return [[lerp(a[0][0],b[0][0],t),lerp(a[0][1],b[0][1],t)],[lerp(a[1][0],b[1][0],t),lerp(a[1][1],b[1][1],t)]];}
+function line(a,b,attrs=''){return `<line x1="${a[0].toFixed(2)}" y1="${a[1].toFixed(2)}" x2="${b[0].toFixed(2)}" y2="${b[1].toFixed(2)}" ${attrs}/>`;}
+function mixPoint(a,b,t){return [lerp(a[0],b[0],t),lerp(a[1],b[1],t)];}
+function mixPolyline(a,b,t){
+  const n=Math.max(a.length,b.length), out=[];
+  for(let i=0;i<n;i++) out.push(mixPoint(a[Math.min(i,a.length-1)],b[Math.min(i,b.length-1)],t));
+  return out;
+}
 
-function morph2D(t,w,h){
-  const cx=w*.5,cy=h*.38,s=Math.min(w/408,h/360)*.95;
-  const m=ease(clamp((t-CUTS.morphStart)/(CUTS.reveal-CUTS.morphStart)));
-  const barY=h*.59;
-  let out=`<rect x="${w*.12}" y="${barY}" width="${w*.76}" height="${Math.max(7,h*.022)}" rx="4" fill="#b7afb6" transform="rotate(${(-4*m).toFixed(2)} ${w/2} ${barY})"/>`;
-  if(t<CUTS.morphStart) return out;
-  out+=`<g transform="translate(${cx} ${cy}) scale(${s})">`;
-  sourceSegments.forEach((seg,i)=>{
-    const u=ease(clamp((m-i*.035)/.79));
-    const z=mixSeg(seg,BUG_TRACE[i],u);
-    out+=line(z[0],z[1],`stroke="#fff7e7" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"`);
-  });
+function stageBackground(w,h){
+  const sx=w/408,sy=h/360;
+  return `<rect width="${w}" height="${h}" fill="#968a93"/>
+    <path d="M0 ${148*sy} L${w} ${164*sy} L${w} ${198*sy} L0 ${182*sy} Z" fill="#aaa2a2" opacity=".42"/>`;
+}
+
+function introScene(t,w,h){
+  const sx=w/408,sy=h/360;
+  const noteCount=INTRO_NOTE_TIMES.filter(x=>t>=x).length;
+  const disappear=ease(clamp((t-CUTS.finalDisappear)/0.10));
+  let out=stageBackground(w,h);
+  out+=`<g transform="scale(${sx} ${sy})" stroke="#fff7e7" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">`;
+  for(let i=0;i<7;i++){
+    const active=noteCount>i;
+    if(active) out+=line(SOURCE_LINES[i][0],SOURCE_LINES[i][1],`opacity="${(1-disappear).toFixed(3)}"`);
+  }
+  if(noteCount>=8) out+=line(BASE_LINE[0],BASE_LINE[1],`stroke="#eee7dc" opacity=".86"`);
+  if(noteCount>=9) BACKGROUND_LINES.forEach(seg=>out+=line(seg[0],seg[1],`stroke="#ded7d8" opacity=".42"`));
   out+='</g>';
   return out;
 }
 
-export function sceneSVG(t,{width=408,height=360,transparent=false}={}){
-  t=Math.max(0,Math.min(DURATION,t));
+function morphScene(t,w,h){
+  const sx=w/408,sy=h/360;
+  const u=clamp((t-CUTS.morphStart)/(CUTS.target2D-CUTS.morphStart));
+  const m=ease(u);
+  let out=stageBackground(w,h);
+  out+=`<g transform="scale(${sx} ${sy})" stroke="#fff8ed" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">`;
+  const targetPaths=[TRACE_2D.body,...TRACE_2D.legs];
+  targetPaths.forEach((target,i)=>{
+    const src=SOURCE_LINES[Math.min(i,SOURCE_LINES.length-1)];
+    const srcPath=[src[0],src[1],src[1]];
+    const local=ease(clamp((m-i*0.035)/0.86));
+    out+=path(mixPolyline(srcPath,target,local));
+  });
+  out+=line(TRACE_2D.platform[0],TRACE_2D.platform[1],`stroke="#efe6dc" opacity="${(0.55+0.45*m).toFixed(3)}"`);
+  out+='</g>';
+  return out;
+}
+
+export function sceneSVG(t,{width=408,height=360}={}){
+  t=clamp(t,0,DURATION);
   let body='';
-  if(t<CUTS.outlinePop){
-    if(!transparent)body+=`<rect width="100%" height="100%" fill="#ffffff"/>`;
-  }else if(t<CUTS.reveal){
-    if(!transparent)body+=`<rect width="100%" height="100%" fill="#93868f"/>`;
-    body+=morph2D(t,width,height);
-  }
+  if(t<CUTS.morphStart) body=introScene(t,width,height);
+  else if(t<CUTS.reveal) body=morphScene(t,width,height);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${body}</svg>`;
 }
