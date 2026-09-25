@@ -1,6 +1,32 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Stick Bug web asset lab</title><link rel="stylesheet" href="./style.css"></head>
-<body><main><h1>Stick Bug web asset lab</h1><p>The setup image is an external slot. At 5.8 s the template becomes a traced 2D stick-bug form; at 7.5 s it hard-cuts into a procedural Three.js insect, preserving the 2D → 3D reveal.</p>
-<div id="stage" aria-label="visual preview"><div id="stage2d"></div><canvas id="stage3d" hidden></canvas><div id="setup-note">SETUP SLOT · insert your own 2D image/video here</div></div>
-<div class="transport"><button id="play">Play</button><input id="timeline" type="range" min="0" value="0"><output id="time">0.000 s</output></div>
-<section><h2>Separate audio assets</h2><div class="grid"><article><h3>Music</h3><audio controls src="./assets/music/stickbug-inspired-loop.wav"></audio></article><article><h3>Outline SFX</h3><audio controls src="./assets/sfx/outline-pop.wav"></audio></article><article><h3>Morph SFX</h3><audio controls src="./assets/sfx/morph.wav"></audio></article><article><h3>Reveal hit</h3><audio controls src="./assets/sfx/reveal-hit.wav"></audio></article></div></section>
-</main><script type="module" src="./src/app.mjs"></script></body></html>
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Stick Bug Web</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main>
+    <h1>Stick Bug Web</h1>
+    <p>冒頭は「鉄琴9音 → 1拍休み → 最後の1音」、その後はブラス系Morph、そして2Dから3Dのナナフシへ急に切り替わります。</p>
+    <div id="stage">
+      <div id="stage2d"></div>
+      <canvas id="stage3d" hidden></canvas>
+      <div id="setup-note">Preview setup: 7音でオブジェ、8音目で土台、9音目で背景、最後の1音でオブジェ消失</div>
+    </div>
+    <div class="transport">
+      <button id="play">Play</button>
+      <input id="timeline" type="range" min="0" value="0">
+      <output id="time">0.000 s</output>
+    </div>
+    <section class="grid">
+      <article><h2>Intro bells</h2><audio controls src="./assets/sfx/intro-bells.wav"></audio></article>
+      <article><h2>Morph brass</h2><audio controls src="./assets/sfx/morph-brass.wav"></audio></article>
+      <article><h2>Reveal hit</h2><audio controls src="./assets/sfx/reveal-hit.wav"></audio></article>
+      <article><h2>Music</h2><audio controls src="./assets/music/stickbug-inspired-loop.wav"></audio></article>
+    </section>
+  </main>
+  <script type="module" src="./src/app.mjs"></script>
+</body>
+</html>
