@@ -1,9 +1,10 @@
 {
-  "name": "stickbug-cleanroom-web-assets",
+  "name": "stickbug-web-assets",
   "private": true,
   "type": "module",
   "scripts": {
-    "serve": "npx serve .",
-    "generate": "node scripts/generate-assets.mjs"
+    "serve": "node scripts/generate-assets.mjs && npx serve .",
+    "generate": "node scripts/generate-assets.mjs",
+    "generate:audio": "node scripts/generate-assets.mjs --audio-only"
   }
 }
