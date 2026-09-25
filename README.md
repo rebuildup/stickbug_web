@@ -1,52 +1,51 @@
-# Stick Bug clean-room web asset pack
+# stickbug_web
 
-A web-native reconstruction of the supplied meme reference. The source clip was analyzed for cut timings, FFT peaks, tempo, spectral balance, palette and motion structure. The distributable pack then rebuilds the *mechanics* from original SVG/JS/audio synthesis rather than embedding the reference assets.
+Web-native reconstruction of the Stick Bug meme template.
 
-## Separate assets
+This revision treats the user's four screenshots as hard visual targets instead of approximate references. The screenshots were exhaustively matched against all 443 frames of the supplied source clip before camera/layout calibration.
 
-### Video
-- `assets/video/visual-only.webm` — full visual timeline, **no audio**
-- `assets/video/stickbug-dance-alpha.webm` — isolated generated insect dance with WebM alpha metadata
+## Timeline
 
-### Images
-- `assets/image/stickbug-pose.svg` / `.png`
-- `assets/image/intro-mark.svg` / `.png`
-- `assets/image/morph-keyframe.svg` / `.png`
+The reusable template starts at the first metallophone strike, so the source clip's ~0.987 s leading silence is removed.
 
-SVG is the source-of-truth format and is resolution independent.
+- 0.000–2.666 s: 9 metallophone strikes
+  - strikes 1–7: source object line components
+  - strike 8: base/ledge
+  - strike 9: background
+- 4.000 s: final metallophone strike; the source object disappears
+- 4.813 s: brass transition starts and the remaining lines move toward the traced stick-bug + ledge target
+- 6.346 s: calibrated 2D target pose (source 7.333 s)
+- 6.513 s: deliberately abrupt 2D -> 3D cut (source 7.500 s)
+- 6.546 s: first calibrated 3D/live composition target (source 7.533 s)
+- 9.613 s: pre-whip calibrated composition target (source 10.600 s)
+- 9.643 s: camera whip begins
+- 10.280 s: forest-side calibrated composition target (source 11.267 s)
 
-### Music
-- `assets/music/stickbug-inspired-loop.wav` — 130.8 BPM, 4 bars, newly composed, intentionally low-bandwidth/lo-fi
+## Rendering
 
-### SFX
-- `assets/sfx/intro-rise.wav`
-- `assets/sfx/outline-pop.wav`
-- `assets/sfx/morph.wav`
+- `src/scene.mjs` — 2D line extraction/morph. The final 2D pose is a pixel-space trace of the 7.333 s reference frame.
+- `src/stickbug3d.mjs` — Three.js renderer. The insect, ledge, occluding post and camera have calibrated keyframes at 7.533 / 10.600 / 11.267 source seconds.
+- `src/app.mjs` — transport and separately timed audio layers.
+
+The 3D insect is made from real 3D segment meshes. Leg feet stay pinned to the ledge; the body and knees absorb the beat-synchronous motion between calibrated frames.
+
+## Separate generated assets
+
+- `assets/sfx/intro-bells.wav` — 9 overlapping metallophone tones + delayed final tone
+- `assets/sfx/morph-brass.wav` — brass-like transition using the measured 5.8–7.5 s onset pattern
 - `assets/sfx/reveal-hit.wav`
+- `assets/music/stickbug-inspired-loop.wav`
+- `assets/image/morph-keyframe.svg`
+- `assets/image/stickbug-2d-pose.svg`
 
-Nothing is premixed. `assets/timeline.json` contains the intended cue positions.
+Regenerate with:
 
-## Web preview
+```bash
+npm run generate
+```
 
-The visual renderer is shared between the browser preview and the export generator:
+Preview with:
 
-- `src/scene.mjs` — pure SVG scene renderer
-- `src/app.mjs` — interactive timeline + separate audio playback
-- `index.html` / `style.css` — preview UI
-
-Serve the folder over HTTP and open `index.html`. The project has no runtime JS dependencies.
-
-## Regeneration
-
-`node scripts/generate-assets.mjs --audio-only` regenerates the synthesized audio files.
-
-`node scripts/generate-assets.mjs` also regenerates stills and convenience WebM renders. The browser/SVG scene in `src/scene.mjs` remains the editable source of truth.
-
-## What was deliberately not copied
-
-- EA logo / wordmark
-- source live-action frames
-- source music recording
-- source melody transcription
-
-The reconstruction instead retains measured timing, transformation grammar, rhythmic feel, frequency emphasis, broad palette relationships and stick-insect motion language. This reduces direct-copy risk but is not a legal guarantee.
+```bash
+npm run serve
+```

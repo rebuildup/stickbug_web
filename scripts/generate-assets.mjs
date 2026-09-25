@@ -1,166 +1,102 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {execFileSync, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {sceneSVG, DURATION, BPM, CUTS} from '../src/scene.mjs';
+import {sceneSVG,BPM,INTRO_NOTE_TIMES,INTRO_NOTE_FREQS,CUTS,DURATION} from '../src/scene.mjs';
 
 const here=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(here,'..');
-const a=(...p)=>path.join(root,'assets',...p);
-for(const d of ['video','image','music','sfx']) fs.mkdirSync(a(d),{recursive:true});
-
-function wav16(file, samples, sampleRate=48000, channels=1){
-  const frames=Math.floor(samples.length/channels);
-  const dataSize=frames*channels*2;
-  const b=Buffer.alloc(44+dataSize);
-  b.write('RIFF',0); b.writeUInt32LE(36+dataSize,4); b.write('WAVE',8); b.write('fmt ',12);
-  b.writeUInt32LE(16,16); b.writeUInt16LE(1,20); b.writeUInt16LE(channels,22); b.writeUInt32LE(sampleRate,24);
-  b.writeUInt32LE(sampleRate*channels*2,28); b.writeUInt16LE(channels*2,32); b.writeUInt16LE(16,34); b.write('data',36); b.writeUInt32LE(dataSize,40);
-  for(let i=0;i<frames*channels;i++){
-    const x=Math.max(-1,Math.min(1,samples[i]));
-    b.writeInt16LE(Math.round(x<0?x*32768:x*32767),44+i*2);
-  }
-  fs.writeFileSync(file,b);
-}
+const asset=(...p)=>path.join(root,'assets',...p);
+for(const d of ['image','music','sfx']) fs.mkdirSync(asset(d),{recursive:true});
 const sr=48000;
-const hz=n=>440*Math.pow(2,(n-69)/12);
-const osc=(type,phase,pulse=.38)=>{
-  const s=Math.sin(phase);
-  if(type==='sine') return s;
-  if(type==='square') return s>=0?1:-1;
-  if(type==='pulse') return ((phase%(Math.PI*2)+Math.PI*2)%(Math.PI*2))<Math.PI*2*pulse?1:-1;
-  if(type==='triangle') return 2/Math.PI*Math.asin(s);
-  if(type==='saw') return 2*(((phase/(Math.PI*2))%1+1)%1)-1;
-  return s;
-};
-function addNote(buf,start,dur,freq,amp=0.2,type='pulse',opts={}){
-  const i0=Math.floor(start*sr), i1=Math.min(buf.length,Math.ceil((start+dur)*sr));
-  let phase=opts.phase||0;
-  for(let i=i0;i<i1;i++){
-    const t=(i/sr-start), u=t/dur;
-    const attack=Math.min(1,t/(opts.attack??0.004));
-    const env=attack*Math.pow(Math.max(0,1-u),opts.releasePower??2.2)*Math.exp(-(opts.decay??1.6)*u);
-    const vibr=(opts.vibratoHz?Math.sin(2*Math.PI*opts.vibratoHz*t)*(opts.vibratoDepth??0.002):0);
-    const f=freq*(1+vibr);
-    phase+=2*Math.PI*f/sr;
-    let v=osc(type,phase,opts.pulse??0.37);
-    if(opts.second){v+=opts.second.amp*osc(opts.second.type||type,phase*(opts.second.mult||2),opts.second.pulse??0.5);}
-    buf[i]+=amp*env*v;
-  }
-}
-function lowpass(x,cut){
-  const out=new Float64Array(x.length); const dt=1/sr, rc=1/(2*Math.PI*cut), al=dt/(rc+dt); let y=0;
-  for(let i=0;i<x.length;i++){y+=al*(x[i]-y);out[i]=y;} return out;
-}
-function highpass(x,cut){
-  const lp=lowpass(x,cut), out=new Float64Array(x.length); for(let i=0;i<x.length;i++) out[i]=x[i]-lp[i]; return out;
-}
-function finishLoFi(x,cut=3000,gain=1.0,bits=8){
-  let y=lowpass(lowpass(x,cut),cut);
-  const q=(1<<(bits-1))-1; let peak=1e-9;
-  for(let i=0;i<y.length;i++){y[i]=Math.tanh(y[i]*1.7)*gain; y[i]=Math.round(y[i]*q)/q; peak=Math.max(peak,Math.abs(y[i]));}
-  const norm=Math.min(1,0.94/peak); for(let i=0;i<y.length;i++) y[i]*=norm;
-  return y;
-}
-function seededNoise(n,seed=0x12345678){const out=new Float64Array(n);let s=seed>>>0;for(let i=0;i<n;i++){s=(1664525*s+1013904223)>>>0;out[i]=(s/0xffffffff)*2-1;}return out;}
 
-// Music: same measured 130.8 BPM, low spectral ceiling and attack density, but a newly composed A-minor motif.
-function makeMusic(){
-  const beat=60/BPM, bars=4, dur=bars*4*beat;
-  let x=new Float64Array(Math.ceil(dur*sr));
-  const bassMidi=[45,52,48,43,45,48,52,55, 45,52,50,43,48,45,43,40];
-  const leadMidi=[64,67,60,64,62,69,67,70, 64,72,67,62,69,65,67,64];
-  for(let bar=0;bar<bars;bar++){
-    for(let e=0;e<8;e++){
-      const t=(bar*4+e*.5)*beat;
-      const bm=bassMidi[(bar*4+e)%bassMidi.length];
-      addNote(x,t,beat*.34,hz(bm),0.28,'triangle',{attack:.002,decay:1.1,second:{amp:.22,mult:2,type:'sine'}});
-      if((e+bar)%3!==1) addNote(x,t+.5*beat*.5,beat*.13,hz(bm+12),0.07,'pulse',{pulse:.31,decay:2.2});
-    }
-    const slots=[0,4,8,12,14];
-    for(let k=0;k<slots.length;k++){
-      const slot=slots[k]; const t=(bar*4)*beat+slot*(beat/4);
-      const lm=leadMidi[(bar*4+k)%leadMidi.length];
-      addNote(x,t,beat*.19,hz(lm),0.22,'pulse',{pulse:.29,attack:.0015,decay:2.0,second:{amp:.18,mult:2,type:'square'}});
-    }
-  }
-  // Broadband attack clicks create the same vertical-onset character without copying the source samples.
-  const noise=seededNoise(x.length,0x51c7b09);
-  for(let bar=0;bar<bars;bar++) for(let e=0;e<8;e++){
-    const i0=Math.floor((bar*4+e*.5)*beat*sr), n=Math.floor(.015*sr);
-    for(let j=0;j<n&&i0+j<x.length;j++) x[i0+j]+=noise[i0+j]*0.035*Math.exp(-j/(sr*.004));
-  }
-  x=finishLoFi(x,2900,1.65,8);
-  wav16(a('music','stickbug-inspired-loop.wav'),x,sr);
-  return dur;
+function wav16(file,samples,sampleRate=sr){
+  const b=Buffer.alloc(44+samples.length*2);
+  b.write('RIFF',0);b.writeUInt32LE(36+samples.length*2,4);b.write('WAVE',8);b.write('fmt ',12);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(sampleRate,24);b.writeUInt32LE(sampleRate*2,28);b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(samples.length*2,40);
+  for(let i=0;i<samples.length;i++){const x=Math.max(-1,Math.min(1,samples[i]));b.writeInt16LE(Math.round(x<0?x*32768:x*32767),44+i*2);}fs.writeFileSync(file,b);
 }
-function makeIntroRise(){
-  const dur=3.05, x=new Float64Array(Math.ceil(dur*sr));
-  // Nine 1/3-second rising plucks, matching measured cadence but not the original sonic logo pitches.
-  const midi=[69,71,72,74,76,77,79,81,83];
-  for(let k=0;k<midi.length;k++) addNote(x,k/3,.27,hz(midi[k]),.42,'sine',{attack:.001,decay:2.8,releasePower:1.4,second:{amp:.16,mult:2,type:'sine'}});
-  const y=finishLoFi(x,5200,.95,10); wav16(a('sfx','intro-rise.wav'),y,sr);
-}
-function makeOutlinePop(){
-  const dur=.48, x=new Float64Array(Math.ceil(dur*sr));
-  const noise=seededNoise(x.length,0x0ddba11);
-  let phase=0;
-  for(let i=0;i<x.length;i++){
-    const t=i/sr,u=t/dur, f=950-520*u; phase+=2*Math.PI*f/sr;
-    const env=Math.exp(-7*u);
-    x[i]=.48*Math.sin(phase)*env + .18*noise[i]*Math.exp(-18*u);
+function normalize(x,peak=.95){let p=1e-9;for(const v of x)p=Math.max(p,Math.abs(v));const g=Math.min(1,peak/p);for(let i=0;i<x.length;i++)x[i]*=g;return x;}
+function softclip(x,d=1.6){for(let i=0;i<x.length;i++)x[i]=Math.tanh(d*x[i]);return x;}
+function lowpass(x,cut){const y=new Float64Array(x.length); const dt=1/sr, rc=1/(2*Math.PI*cut), a=dt/(dt+rc); let s=0; for(let i=0;i<x.length;i++){s+=a*(x[i]-s);y[i]=s;} return y;}
+function noise(n,seed=1){const out=new Float64Array(n); let s=seed>>>0; for(let i=0;i<n;i++){s=(1664525*s+1013904223)>>>0; out[i]=(s/0xffffffff)*2-1;} return out;}
+
+function addBell(buf,start,freq,amp=.65,dur=1.25){
+  const i0=Math.floor(start*sr), i1=Math.min(buf.length,Math.floor((start+dur)*sr));
+  let p1=0,p2=0,p3=0,p4=0;
+  for(let i=i0;i<i1;i++){
+    const t=(i-i0)/sr;
+    const env=Math.exp(-2.6*t);
+    const hit=Math.min(1,t/0.002);
+    p1+=2*Math.PI*freq/sr;p2+=2*Math.PI*freq*2.68/sr;p3+=2*Math.PI*freq*4.12/sr;p4+=2*Math.PI*freq*5.43/sr;
+    let s=0.72*Math.sin(p1)+0.24*Math.sin(p2+0.3)+0.14*Math.sin(p3+0.8)+0.08*Math.sin(p4+1.2);
+    s*=amp*env*hit;buf[i]+=s;
   }
-  const y=finishLoFi(x,6500,1,10); wav16(a('sfx','outline-pop.wav'),y,sr);
+}
+function makeIntro(){
+  const dur=5.3,buf=new Float64Array(Math.ceil(dur*sr));
+  for(let i=0;i<INTRO_NOTE_TIMES.length;i++)addBell(buf,INTRO_NOTE_TIMES[i],INTRO_NOTE_FREQS[i],i===INTRO_NOTE_TIMES.length-1?0.85:0.62,1.08);
+  const y=normalize(lowpass(softclip(buf,1.2),5400),0.93);
+  wav16(asset('sfx','intro-bells.wav'),y);
 }
 function makeMorph(){
-  const dur=1.70, n=Math.ceil(dur*sr); let x=new Float64Array(n); const noise=seededNoise(n,0x7b6d331);
-  const bp=highpass(lowpass(noise,7200),240);
-  let phase=0;
-  for(let i=0;i<n;i++){
+  const dur=CUTS.reveal-CUTS.morphStart+0.12,buf=new Float64Array(Math.ceil(dur*sr));
+  const n=noise(buf.length,0x12345);
+  for(let i=0;i<buf.length;i++){
     const t=i/sr,u=t/dur;
-    const f=180+760*u+90*Math.sin(u*Math.PI*6); phase+=2*Math.PI*f/sr;
-    const env=Math.sin(Math.PI*Math.min(1,u*.92+.04));
-    const gate=.65+.35*(Math.sin(2*Math.PI*7.5*t)>-.2?1:0);
-    x[i]=.20*bp[i]*env*gate + .09*osc('saw',phase)*env;
+    const rise=Math.min(1,t/0.35)*Math.pow(1-u,0.25);
+    const f1=180+210*u,f2=270+250*u,f3=360+130*u;
+    buf[i]+=rise*(0.30*Math.sin(2*Math.PI*f1*t)+0.22*Math.sin(2*Math.PI*f2*t+0.4)+0.15*Math.sin(2*Math.PI*f3*t+1.2));
+    buf[i]+=0.045*n[i]*(0.55+0.45*Math.sin(Math.PI*u))*Math.exp(-0.6*u);
   }
-  x=finishLoFi(x,7600,1,9); wav16(a('sfx','morph.wav'),x,sr);
+  const stabTimes=[.024,.101,.168,.221,.320,.429,.483,.587,.624,.672,.709,.787,.824,.965,1.067,1.131,1.227,1.267,1.331,1.453,1.568,1.640];
+  const roots=[187.5,246,196,255,187.5,246,196,255];
+  for(let si=0;si<stabTimes.length;si++){
+    const s0=stabTimes[si],i0=Math.floor(s0*sr),root=roots[si%roots.length];
+    const phases=[0,.2,.55,.9,1.25];
+    for(let j=0;j<sr*.34&&i0+j<buf.length;j++){
+      const t=j/sr;
+      const attack=Math.min(1,t/.014),env=attack*Math.exp(-6.2*t);
+      const pitch=root*(1-.025*Math.min(1,t/.18));
+      let brass=0;
+      for(let h=1;h<=5;h++)brass += [1,.58,.38,.24,.14][h-1]*Math.sin(2*Math.PI*pitch*h*t+phases[h-1]);
+      const formant=.20*Math.sin(2*Math.PI*492*t+.3)+.12*Math.sin(2*Math.PI*773*t+.7)+.07*Math.sin(2*Math.PI*1453*t+1.1);
+      buf[i0+j]+=0.085*env*(brass+formant);
+    }
+  }
+  const y=normalize(lowpass(softclip(buf,1.95),3100),0.92);
+  wav16(asset('sfx','morph-brass.wav'),y);
 }
 function makeRevealHit(){
-  const dur=.22,n=Math.ceil(dur*sr);let x=new Float64Array(n);const noise=seededNoise(n,0x3141592);let phase=0;
-  for(let i=0;i<n;i++){
-    const t=i/sr,u=t/dur,f=170*Math.pow(70/170,u);phase+=2*Math.PI*f/sr;
-    x[i]=.52*Math.sin(phase)*Math.exp(-8*u)+.12*noise[i]*Math.exp(-25*u);
+  const dur=0.20,buf=new Float64Array(Math.ceil(dur*sr));
+  for(let i=0;i<buf.length;i++){
+    const t=i/sr,u=t/dur,f=240*Math.pow(0.42,u);
+    buf[i]+=0.72*Math.sin(2*Math.PI*f*t)*Math.exp(-7*u);
   }
-  x=finishLoFi(x,5500,1,10);wav16(a('sfx','reveal-hit.wav'),x,sr);
+  const y=normalize(lowpass(buf,2400),0.88);wav16(asset('sfx','reveal-hit.wav'),y);
+}
+function makeMusic(){
+  const beat=60/BPM,dur=DURATION-CUTS.reveal+0.8,nS=Math.ceil(dur*sr),buf=new Float64Array(nS),nz=noise(nS,0x56789);
+  const bass=[93.75,93.75,101.5,93.75,93.75,117.0,101.5,93.75];
+  const lead=[304.7,304.7,468.75,304.7,562.5,304.7,468.75,304.7];
+  for(let bar=0;bar<8;bar++){
+    for(let step=0;step<8;step++){
+      const t=(bar*8+step)*beat*0.5;
+      const f0=bass[(bar+step)%bass.length],f1=lead[(bar*2+step)%lead.length],i0=Math.floor(t*sr);
+      let p0=0,p1=0,p2=0;
+      for(let j=0;j<sr*0.36&&i0+j<nS;j++){
+        const s=j/sr,env=Math.exp(-5.4*s);
+        p0+=2*Math.PI*f0/sr;p1+=2*Math.PI*(f0*3.25)/sr;p2+=2*Math.PI*f1/sr;
+        buf[i0+j]+=0.16*env*(0.9*Math.sin(p0)+0.28*Math.sign(Math.sin(p0*2.01)));
+        buf[i0+j]+=0.05*env*Math.sin(p1+0.7);
+        buf[i0+j]+=0.06*Math.exp(-4.2*s)*Math.sin(p2);
+        if(j<sr*0.04)buf[i0+j]+=0.03*nz[i0+j]*Math.exp(-60*s);
+      }
+    }
+  }
+  const y=normalize(lowpass(lowpass(softclip(buf,1.8),1750),1450),0.92);
+  wav16(asset('music','stickbug-inspired-loop.wav'),y);
 }
 
-const musicDur=makeMusic(); makeIntroRise(); makeOutlinePop(); makeMorph(); makeRevealHit();
-if(process.argv.includes('--audio-only')){ console.log(JSON.stringify({bpm:BPM,musicDur,audio:'generated'},null,2)); process.exit(0); }
-
-// Vector stills
-fs.writeFileSync(a('image','stickbug-pose.svg'), sceneSVG(8.22,{width:816,height:720,transparent:true,bugOnly:true}));
-fs.writeFileSync(a('image','intro-mark.svg'), sceneSVG(2.2,{width:816,height:720,transparent:true}));
-fs.writeFileSync(a('image','morph-keyframe.svg'), sceneSVG(6.8,{width:816,height:720,transparent:true}));
-for(const name of ['stickbug-pose','intro-mark','morph-keyframe']){
-  execFileSync('/opt/imagemagick/bin/magick',[a('image',`${name}.svg`),a('image',`${name}.png`)]);
-}
-
-// Visual-only render. The source of truth remains the browser SVG renderer; this WebM is an editing convenience.
-const temp=path.join(root,'.frames'); fs.rmSync(temp,{recursive:true,force:true}); fs.mkdirSync(temp,{recursive:true});
-const fps=12, count=Math.ceil(DURATION*fps);
-for(let i=0;i<count;i++) fs.writeFileSync(path.join(temp,`f_${String(i).padStart(4,'0')}.svg`),sceneSVG(i/fps,{width:408,height:360}));
-const cmd=`find ${JSON.stringify(temp)} -name 'f_*.svg' -print0 | xargs -0 -P 16 -I{} sh -c '/opt/imagemagick/bin/magick "$1" "\${1%.svg}.png"' _ {}`;
-let r=spawnSync('bash',['-lc',cmd],{stdio:'inherit'}); if(r.status!==0) process.exit(r.status||1);
-execFileSync('ffmpeg',['-y','-hide_banner','-loglevel','error','-framerate',String(fps),'-i',path.join(temp,'f_%04d.png'),'-c:v','libvpx-vp9','-b:v','0','-crf','28','-pix_fmt','yuv420p',a('video','visual-only.webm')]);
-fs.rmSync(temp,{recursive:true,force:true});
-
-// Transparent bug-only loop, 4 bars long.
-const tempA=path.join(root,'.frames-alpha'); fs.rmSync(tempA,{recursive:true,force:true}); fs.mkdirSync(tempA,{recursive:true});
-const alphaDur=musicDur, alphaCount=Math.ceil(alphaDur*fps);
-for(let i=0;i<alphaCount;i++) fs.writeFileSync(path.join(tempA,`a_${String(i).padStart(4,'0')}.svg`),sceneSVG(CUTS.reveal+i/fps,{width:408,height:360,transparent:true,bugOnly:true}));
-const cmdA=`find ${JSON.stringify(tempA)} -name 'a_*.svg' -print0 | xargs -0 -P 16 -I{} sh -c '/opt/imagemagick/bin/magick -background none "$1" "\${1%.svg}.png"' _ {}`;
-r=spawnSync('bash',['-lc',cmdA],{stdio:'inherit'}); if(r.status!==0) process.exit(r.status||1);
-execFileSync('ffmpeg',['-y','-hide_banner','-loglevel','error','-framerate',String(fps),'-i',path.join(tempA,'a_%04d.png'),'-c:v','libvpx-vp9','-b:v','0','-crf','30','-pix_fmt','yuva420p','-auto-alt-ref','0',a('video','stickbug-dance-alpha.webm')]);
-fs.rmSync(tempA,{recursive:true,force:true});
-
-console.log(JSON.stringify({duration:DURATION,bpm:BPM,musicDur,fps,assets:'generated'},null,2));
+makeIntro();makeMorph();makeRevealHit();makeMusic();
+fs.writeFileSync(asset('image','morph-keyframe.svg'),sceneSVG((CUTS.morphStart+CUTS.reveal)*0.5,{width:816,height:720}));
+fs.writeFileSync(asset('image','stickbug-2d-pose.svg'),sceneSVG(CUTS.reveal-0.03,{width:816,height:720}));
+console.log(JSON.stringify({ok:true,files:['intro-bells.wav','morph-brass.wav','reveal-hit.wav','stickbug-inspired-loop.wav']},null,2));

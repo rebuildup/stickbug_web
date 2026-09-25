@@ -1,74 +1,62 @@
 # Reference analysis
 
-The supplied reference was measured, not eyeballed. The output assets do **not** contain source frames, the EA logo, or the source music.
+## Exact screenshot/frame identification
 
-## Media
+The four user-provided 408x360 screenshots were compared against every frame in the 30 fps / 443-frame source MP4 using pixel MSE. Best matches:
 
-- Video: 408×360, H.264, 30 fps, 14.775 s
-- Audio: 48 kHz stereo in the MP4; supplied WAV is 48 kHz PCM, 14.7679 s
+| screenshot content | source frame | source time | MSE |
+| --- | ---: | ---: | ---: |
+| 2D stick-bug pose | 220 | 7.333 s | 1.462 |
+| first live/3D-looking mauve ledge frame | 226 | 7.533 s | 1.021 |
+| bright right post / sloped ledge | 318 | 10.600 s | 1.184 |
+| forest background / other ledge face | 338 | 11.267 s | 4.160 |
 
-## Frame-level timing
+This is the chronological order used by the implementation and verification. The order in which screenshots were attached was not chronological.
 
-| Time | Measured event | Reconstruction decision |
-| ---: | --- | --- |
-| 0.000 | Filled blue corporate mark on white | New custom angular mark, same broad visual role |
-| 1.034 | First ascending pluck | Begin progressive fill→outline conversion |
-| 1.368–3.701 | 8 further plucks at ≈0.333 s spacing | Nine-step line reveal, synchronized |
-| 3.700 | Hard background cut from white to mauve; underline appears | Same hard timing; measured mauve family retained |
-| 5.000 | Large transient / visual simplification | New outline-pop SFX; mark switches to ivory monoline |
-| 5.800 | Broadband transition audio begins | Line segments begin morphing into insect geometry |
-| 7.500 | Hard reveal into live insect footage; music begins | Hard reveal into procedural ledge/garden + generated insect dance |
-| 10.630 | Fast camera/background movement | Short procedural whip-pan transition |
-| 11.250 | Brighter green garden view settles | Procedural blurred garden plate |
+## Visual constraints
 
-Representative measured palette from the reference:
+### 7.333 s
 
-- logo blue ≈ `#106DBA`
-- stage mauve ≈ `#93868F`
-- pale line ≈ `#FBF5EC`
-- underline ≈ `#AEA8B0`
+The final 2D pose is traced in 408x360 pixel coordinates. Its body/leg endpoints and the sloped platform line are stored directly in `src/scene.mjs` and form the convergence target of the morph.
 
-The generated palette is intentionally nearby rather than a pixel copy.
+### 7.533 s
 
-## Intro SFX analysis
+The first 3D frame keeps almost the same insect silhouette but replaces the flat graphic with a physical ledge. The calibrated rail edge runs approximately from the left at y=132–145 to the right at y=167–181. The insect feet remain pinned along that edge.
 
-Amplitude/onset detection finds nine attacks:
+### 10.600 s
 
-`1.034, 1.368, 1.701, 2.034, 2.365, 2.701, 3.033, 3.367, 3.701 s`
+The ledge slopes much more strongly from left to right. A large pale vertical post occupies the right side and occludes the insect. This is a required camera-composition keyframe, not a decorative approximation.
 
-FFT peaks for the clean early tones are approximately:
+### 11.267 s
 
-`522, 553, 586, 621, 658, ~698, 741, 786, 833 Hz`
+After the whip, the camera exposes the ledge corner and a different face of the railing. The background is a strongly defocused forest; dark/bright vertical structural elements sit at the left edge. The insect is smaller and remains attached to the ledge.
 
-This is effectively a roughly chromatic ascending run at one attack per ~333 ms. The generated `intro-rise.wav` keeps the cadence and rising-register behavior but uses a new pitch set and synthesized timbre.
+## Intro audio
 
-## Reveal music analysis
+Source onset analysis finds the nine ascending metallophone attacks at approximately:
 
-Analysis is restricted to the post-reveal portion (7.5 s onward).
+`0.987, 1.317, 1.653, 1.984, 2.320, 2.651, 2.987, 3.317, 3.653 s`
 
-- dominant tempogram peak: **130.8 BPM**
-- secondary nearby peaks: 129.3 / 132.4 BPM
-- observed event density: ~5.4 onsets/s
-- spectral energy distribution from STFT:
-  - <100 Hz: 23.9%
-  - 100–300 Hz: 45.8%
-  - 300–1000 Hz: 29.5%
-  - 1–3 kHz: 0.75%
-  - >3 kHz: effectively negligible in this clip
+and the later isolated tone at approximately `4.987 s`.
 
-So the recognizable audio texture is not just the tune: it is bass-heavy, attack-dense, strongly bandwidth-limited/lo-fi material around 130.8 BPM. The generated music therefore preserves **tempo, spectral center, low-pass character and attack density**, while using a new A-minor composition rather than transcribing the source melody.
+The template removes the original leading silence, shifting these to approximately:
 
-Generated loop metrics after tuning:
+`0.000, 0.330, 0.666, 0.997, 1.333, 1.664, 2.000, 2.330, 2.666 s`, then `4.000 s`.
 
-- dominant tempogram peak: 130.8 BPM
-- <100 Hz: ~20.7%
-- 100–300 Hz: ~54.9%
-- 300–1000 Hz: ~22.8%
-- 1–3 kHz: ~1.6%
-- >3 kHz: <0.1%
+Approximate dominant frequencies measured around those attacks:
 
-## Visual motion abstraction
+`527, 516, 598, 621, 656, 656, 738, 785, 844 Hz`, final tone `~879 Hz`.
 
-The reference transformation is based on a small number of straight line elements. Instead of tracing the source logo, the generated mark is constructed from original polygons and an eight-segment monoline skeleton. Each segment has a one-to-one destination in a generated stick-insect skeleton, so the morph reads as a structural transformation rather than a crossfade.
+The generated tones use long overlapping metallophone envelopes so the texture does not collapse into isolated sine beeps.
 
-The dance after 7.5 s is generated parametrically at the measured music tempo. Body bob, body rotation and alternating leg endpoints use phase-shifted periodic motion; no source video pixels are used.
+## Morph SFX
+
+The 5.8–7.5 s source interval contains dense irregular attacks at:
+
+`5.824, 5.901, 5.968, 6.021, 6.120, 6.229, 6.283, 6.387, 6.424, 6.472, 6.509, 6.587, 6.624, 6.765, 6.867, 6.931, 7.027, 7.067, 7.131, 7.253, 7.368, 7.440 s`.
+
+Dominant resonant bands cluster near `255, 327, 375–400, 491–527, 582–586, 655, 764–782, 964–982, 1.15 kHz, 1.45 kHz, 1.95 kHz, 2.2 kHz`. The current generator voices the same event density with overlapping brass-like harmonic stacks instead of the previous metallic/noise-only morph.
+
+## Reveal music
+
+Measured dominant tempo: **130.8 BPM**. The generated composition remains newly composed but intentionally preserves the source-like overlap, low spectral center, saturation and dense attack pattern.
