@@ -24,7 +24,7 @@ const KEYS=[
     ],
     railTop:[[0,132],[408,167],[408,181],[0,145]],
     railFront:[[0,145],[408,181],[408,360],[0,360]],
-    bg:'mauve',
+    bg:'mauve',bugAlpha:.96,bugThickness:1.0,
   },
   {
     t:CUTS.preWhip,
@@ -40,7 +40,7 @@ const KEYS=[
     ],
     railTop:[[0,175],[408,240],[408,256],[0,190]],
     railFront:[[0,190],[408,256],[408,360],[0,360]],
-    bg:'post',
+    bg:'post',bugAlpha:.96,bugThickness:1.0,
   },
   {
     t:CUTS.garden,
@@ -56,7 +56,7 @@ const KEYS=[
     ],
     railTop:[[0,189],[329,188],[408,237],[408,259],[0,244]],
     railFront:[[0,244],[408,259],[408,322],[0,322]],
-    bg:'forest',
+    bg:'forest',bugAlpha:.42,bugThickness:.62,
   },
 ];
 
@@ -140,7 +140,7 @@ export function createStickBug3D(canvas){
   const railTop=polygonMesh(5,railTopMat),railFront=polygonMesh(4,railFrontMat);scene.add(railFront,railTop);
   const darkFront=polygonMesh(4,new THREE.MeshBasicMaterial({color:0x81717f,side:THREE.DoubleSide}));scene.add(darkFront);
 
-  const bugMat=new THREE.MeshStandardMaterial({color:0xf7f1d8,roughness:.82,emissive:0x151207,emissiveIntensity:.10});
+  const bugMat=new THREE.MeshStandardMaterial({color:0xf7f1d8,roughness:.82,emissive:0x151207,emissiveIntensity:.10,transparent:true,opacity:.96});
   const body=[];for(let i=0;i<4;i++){const m=makeSegment(bugMat,.028);scene.add(m);body.push(m);}
   const head=new THREE.Mesh(new THREE.SphereGeometry(.050,10,8),bugMat);scene.add(head);
   const legs=[];for(let i=0;i<6;i++){const a=makeSegment(bugMat,.021),b=makeSegment(bugMat,.018);scene.add(a,b);legs.push([a,b]);}
@@ -156,13 +156,14 @@ export function createStickBug3D(canvas){
     const bodyPts=mixPts(a.body,b.body,u);
     const legPts=a.legs.map((leg,i)=>leg.map((p,j)=>mix2(p,b.legs[i][j],u)));
     const railTopPts=mixPts(a.railTop,b.railTop,u), railFrontPts=mixPts(a.railFront,b.railFront,u);
+    const bugThickness=mix(a.bugThickness,b.bugThickness,u);bugMat.opacity=mix(a.bugAlpha,b.bugAlpha,u);
     const between=Math.sin(Math.PI*u)**2;const phase=(t-CUTS.reveal)*BPM/60*Math.PI*2;const dx=between*3.2*Math.sin(phase),dy=between*4.2*Math.cos(phase);
     bodyPts.forEach((p,i)=>{p[0]+=dx*(i/Math.max(1,bodyPts.length-1));p[1]+=dy;});
-    for(let i=0;i<body.length;i++) setSegment(body[i],screenToWorld(bodyPts[i][0],bodyPts[i][1],5.4-.05*i,camera),screenToWorld(bodyPts[i+1][0],bodyPts[i+1][1],5.4-.05*(i+1),camera));
+    for(let i=0;i<body.length;i++) setSegment(body[i],screenToWorld(bodyPts[i][0],bodyPts[i][1],5.4-.05*i,camera),screenToWorld(bodyPts[i+1][0],bodyPts[i+1][1],5.4-.05*(i+1),camera),bugThickness);
     head.position.copy(screenToWorld(bodyPts.at(-1)[0],bodyPts.at(-1)[1],5.18,camera));
     legPts.forEach((leg,i)=>{
       const base=leg[0].slice(),knee=leg[1].slice(),foot=leg[2].slice();base[0]+=dx*.45;base[1]+=dy*.75;knee[0]+=dx*.20*Math.sin(i+phase);knee[1]+=dy*.35;
-      const z=5.38+(i%2?0.13:-0.10);setSegment(legs[i][0],screenToWorld(base[0],base[1],z,camera),screenToWorld(knee[0],knee[1],z+.03,camera));setSegment(legs[i][1],screenToWorld(knee[0],knee[1],z+.03,camera),screenToWorld(foot[0],foot[1],5.55,camera));
+      const z=5.38+(i%2?0.13:-0.10);setSegment(legs[i][0],screenToWorld(base[0],base[1],z,camera),screenToWorld(knee[0],knee[1],z+.03,camera),bugThickness);setSegment(legs[i][1],screenToWorld(knee[0],knee[1],z+.03,camera),screenToWorld(foot[0],foot[1],5.55,camera),bugThickness);
     });
     updatePoly(railTop,railTopPts,camera,5.62);updatePoly(railFront,railFrontPts,camera,5.66);
     updatePoly(darkFront,[[0,322],[408,322],[408,360],[0,360]],camera,5.70);darkFront.visible=t>=CUTS.garden-.03;
