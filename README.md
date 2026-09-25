@@ -1,52 +1,71 @@
-# Stick Bug clean-room web asset pack
+# stickbug_web
 
-A web-native reconstruction of the supplied meme reference. The source clip was analyzed for cut timings, FFT peaks, tempo, spectral balance, palette and motion structure. The distributable pack then rebuilds the *mechanics* from original SVG/JS/audio synthesis rather than embedding the reference assets.
+Web-native reconstruction of the Stick Bug meme mechanics.
+
+The template is intentionally split into two different rendering domains:
+
+- **setup/bait content** — external; not part of this repository
+- **5.8–7.5 s** — 2D SVG trace/morph into a stick-bug silhouette
+- **7.5 s onward** — hard cut to a procedural **Three.js 3D stick insect**
+
+That 2D → 3D discontinuity is treated as part of the gag, rather than rendering the whole sequence with one visual system.
+
+## Run
+
+```bash
+npm run serve
+```
+
+The serve script regenerates the separate audio/image assets before starting the preview.
+
+## Source of truth
+
+- `src/scene.mjs` — 2D transition and timing constants
+- `src/stickbug3d.mjs` — procedural 3D insect, rig motion, camera and ledge/garden transition
+- `src/app.mjs` — shared timeline/audio transport
+- `scripts/generate-assets.mjs` — separate WAV and SVG synthesis
 
 ## Separate assets
 
-### Video
-- `assets/video/visual-only.webm` — full visual timeline, **no audio**
-- `assets/video/stickbug-dance-alpha.webm` — isolated generated insect dance with WebM alpha metadata
-
 ### Images
-- `assets/image/stickbug-pose.svg` / `.png`
-- `assets/image/intro-mark.svg` / `.png`
-- `assets/image/morph-keyframe.svg` / `.png`
 
-SVG is the source-of-truth format and is resolution independent.
+- `assets/image/morph-keyframe.svg`
+- `assets/image/stickbug-2d-pose.svg`
 
 ### Music
-- `assets/music/stickbug-inspired-loop.wav` — 130.8 BPM, 4 bars, newly composed, intentionally low-bandwidth/lo-fi
+
+- `assets/music/stickbug-inspired-loop.wav`
+
+The composition is new. The target is the source clip's **texture**: 130.8 BPM, overlapping low/mid layers, dense attacks, saturation and a low spectral ceiling.
 
 ### SFX
-- `assets/sfx/intro-rise.wav`
+
 - `assets/sfx/outline-pop.wav`
 - `assets/sfx/morph.wav`
 - `assets/sfx/reveal-hit.wav`
 
-Nothing is premixed. `assets/timeline.json` contains the intended cue positions.
+The SFX are resynthesized from measured onset timing, pitch/resonance bands, envelopes and noise balance. They do not embed samples from the reference recording.
 
-## Web preview
+Regenerate all generated assets with:
 
-The visual renderer is shared between the browser preview and the export generator:
+```bash
+npm run generate
+```
 
-- `src/scene.mjs` — pure SVG scene renderer
-- `src/app.mjs` — interactive timeline + separate audio playback
-- `index.html` / `style.css` — preview UI
+or audio only:
 
-Serve the folder over HTTP and open `index.html`. The project has no runtime JS dependencies.
+```bash
+npm run generate:audio
+```
 
-## Regeneration
+## Reference-derived timing
 
-`node scripts/generate-assets.mjs --audio-only` regenerates the synthesized audio files.
+| event | time |
+| --- | ---: |
+| outline cue | 5.000 s |
+| 2D morph starts | 5.800 s |
+| 2D → 3D reveal / music | 7.500 s |
+| camera whip | 10.630 s |
+| garden settles | 11.250 s |
 
-`node scripts/generate-assets.mjs` also regenerates stills and convenience WebM renders. The browser/SVG scene in `src/scene.mjs` remains the editable source of truth.
-
-## What was deliberately not copied
-
-- EA logo / wordmark
-- source live-action frames
-- source music recording
-- source melody transcription
-
-The reconstruction instead retains measured timing, transformation grammar, rhythmic feel, frequency emphasis, broad palette relationships and stick-insect motion language. This reduces direct-copy risk but is not a legal guarantee.
+The pre-5 s EA footage in the supplied reference is treated as the replaceable setup slot, not as part of the meme template.
