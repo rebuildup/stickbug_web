@@ -1,0 +1,9 @@
+{
+  "name": "stickbug-cleanroom-web-assets",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "npx serve .",
+    "generate": "node scripts/generate-assets.mjs"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "duration": 14.7679,
+  "referenceFps": 30,
+  "previewVideoFps": 12,
+  "musicBpm": 130.8,
+  "cues": [
+    {"time": 0.000, "event": "intro-mark"},
+    {"time": 1.034, "event": "intro-rise-start"},
+    {"time": 3.700, "event": "stage-cut"},
+    {"time": 5.000, "event": "outline-pop"},
+    {"time": 5.800, "event": "morph-start"},
+    {"time": 7.500, "event": "reveal-and-music"},
+    {"time": 10.630, "event": "whip-start"},
+    {"time": 11.250, "event": "garden-settle"}
+  ]
+}
