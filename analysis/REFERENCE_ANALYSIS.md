@@ -1,74 +1,49 @@
 # Reference analysis
 
-The supplied reference was measured, not eyeballed. The output assets do **not** contain source frames, the EA logo, or the source music.
+## Visual structure
 
-## Media
+The supplied clip's reusable template boundary is not the EA logo. The logo is setup/bait content that happens to occupy the replaceable first slot.
 
-- Video: 408×360, H.264, 30 fps, 14.775 s
-- Audio: 48 kHz stereo in the MP4; supplied WAV is 48 kHz PCM, 14.7679 s
+The reusable transition is:
 
-## Frame-level timing
+1. around **5.0 s**, the source image has collapsed to a pale line treatment;
+2. from **5.8 s**, line geometry progressively resolves into a 2D stick-insect silhouette;
+3. at **7.5 s**, there is a hard medium change from flat 2D graphics to the insect footage;
+4. around **10.63–11.25 s**, the camera/background moves into the brighter garden view.
 
-| Time | Measured event | Reconstruction decision |
-| ---: | --- | --- |
-| 0.000 | Filled blue corporate mark on white | New custom angular mark, same broad visual role |
-| 1.034 | First ascending pluck | Begin progressive fill→outline conversion |
-| 1.368–3.701 | 8 further plucks at ≈0.333 s spacing | Nine-step line reveal, synchronized |
-| 3.700 | Hard background cut from white to mauve; underline appears | Same hard timing; measured mauve family retained |
-| 5.000 | Large transient / visual simplification | New outline-pop SFX; mark switches to ivory monoline |
-| 5.800 | Broadband transition audio begins | Line segments begin morphing into insect geometry |
-| 7.500 | Hard reveal into live insect footage; music begins | Hard reveal into procedural ledge/garden + generated insect dance |
-| 10.630 | Fast camera/background movement | Short procedural whip-pan transition |
-| 11.250 | Brighter green garden view settles | Procedural blurred garden plate |
+The implementation therefore keeps the transition in SVG and moves the post-7.5 s section to Three.js. The 3D insect uses the proportions and side-on leg geometry of the reference frames, but no source pixels.
 
-Representative measured palette from the reference:
+## 3D motion target
 
-- logo blue ≈ `#106DBA`
-- stage mauve ≈ `#93868F`
-- pale line ≈ `#FBF5EC`
-- underline ≈ `#AEA8B0`
+The 7.5–10.6 s section is dominated by a long horizontal body, small head on the right, three high angular leg pairs, alternating compression/extension close to eighth-note timing, and small body bob/roll.
 
-The generated palette is intentionally nearby rather than a pixel copy.
+The Three.js renderer models six two-segment legs, a segmented body and two antennae. After 10.63 s the camera, insect scale and background shift together to preserve the original spatial discontinuity.
 
-## Intro SFX analysis
+## Outline cue SFX
 
-Amplitude/onset detection finds nine attacks:
+A 25 ms-window analysis around 5.0 s shows a dominant **~880 Hz** component with a fast exponential tail:
 
-`1.034, 1.368, 1.701, 2.034, 2.365, 2.701, 3.033, 3.367, 3.701 s`
+- 5.050 s: about -8 dB RMS
+- 5.200 s: about -31 dB RMS
+- 5.350 s: about -51 dB RMS
+- 5.500 s: about -72 dB RMS
 
-FFT peaks for the clean early tones are approximately:
+A much quieter component sits around **6.2 kHz**. The replacement SFX recreates those properties by synthesis rather than copying the recording.
 
-`522, 553, 586, 621, 658, ~698, 741, 786, 833 Hz`
+## Morph SFX
 
-This is effectively a roughly chromatic ascending run at one attack per ~333 ms. The generated `intro-rise.wav` keeps the cadence and rising-register behavior but uses a new pitch set and synthesized timbre.
+Onset detection between 5.8 and 7.5 s finds 22 dense attacks:
 
-## Reveal music analysis
+`5.824, 5.901, 5.968, 6.021, 6.120, 6.229, 6.283, 6.387, 6.424, 6.472, 6.509, 6.587, 6.624, 6.765, 6.867, 6.931, 7.027, 7.067, 7.131, 7.253, 7.368, 7.440 s`
 
-Analysis is restricted to the post-reveal portion (7.5 s onward).
+Dominant repeating resonances cluster around:
 
-- dominant tempogram peak: **130.8 BPM**
-- secondary nearby peaks: 129.3 / 132.4 BPM
-- observed event density: ~5.4 onsets/s
-- spectral energy distribution from STFT:
-  - <100 Hz: 23.9%
-  - 100–300 Hz: 45.8%
-  - 300–1000 Hz: 29.5%
-  - 1–3 kHz: 0.75%
-  - >3 kHz: effectively negligible in this clip
+`255, 327, 375–400, 491–527, 582–586, 655, 764–782, 964–982, 1.15 kHz, 1.45 kHz, 1.95 kHz, 2.2 kHz`
 
-So the recognizable audio texture is not just the tune: it is bass-heavy, attack-dense, strongly bandwidth-limited/lo-fi material around 130.8 BPM. The generated music therefore preserves **tempo, spectral center, low-pass character and attack density**, while using a new A-minor composition rather than transcribing the source melody.
+with weaker upper energy into roughly 3–6 kHz. The generator uses these measured event positions and resonance families to excite damped synthetic oscillators plus filtered noise.
 
-Generated loop metrics after tuning:
+## Music texture
 
-- dominant tempogram peak: 130.8 BPM
-- <100 Hz: ~20.7%
-- 100–300 Hz: ~54.9%
-- 300–1000 Hz: ~22.8%
-- 1–3 kHz: ~1.6%
-- >3 kHz: <0.1%
+Post-reveal analysis gives a dominant tempo near **130.8 BPM** and a very low spectral center. The first reconstruction was too sparse because notes decayed before later voices accumulated.
 
-## Visual motion abstraction
-
-The reference transformation is based on a small number of straight line elements. Instead of tracing the source logo, the generated mark is constructed from original polygons and an eight-segment monoline skeleton. Each segment has a one-to-one destination in a generated stick-insect skeleton, so the morph reads as a structural transformation rather than a crossfade.
-
-The dance after 7.5 s is generated parametrically at the measured music tempo. Body bob, body rotation and alternating leg endpoints use phase-shifted periodic motion; no source video pixels are used.
+The current loop deliberately overlaps sustained sub and mid layers, eighth-note bass/plucks, octave support, independent lead/support voices, low-band transient noise, saturation and low-pass filtering. The note sequence/harmony is newly composed; the target is density and timbre, not melody.
